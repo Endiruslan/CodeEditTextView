@@ -295,10 +295,29 @@ extension TextLayoutManager {
             renderDelegate?.lineFragmentView(for: lineFragment.data) ?? LineFragmentView()
         }
         view.translatesAutoresizingMaskIntoConstraints = true // Small optimization for lots of subviews
-        view.setLineFragment(lineFragment.data, fragmentRange: fragmentRange, renderer: lineFragmentRenderer)
-        view.frame.origin = CGPoint(x: edgeInsets.left, y: yPos)
-        layoutView?.addSubview(view, positioned: .below, relativeTo: nil)
-        view.needsDisplay = true
+
+        // Only update the fragment and mark for redisplay if the content actually changed.
+        let fragmentChanged = view.lineFragment !== lineFragment.data
+        if fragmentChanged {
+            view.setLineFragment(lineFragment.data, fragmentRange: fragmentRange, renderer: lineFragmentRenderer)
+        }
+        lineFragment.data.documentRange = fragmentRange
+
+        let newOrigin = CGPoint(x: edgeInsets.left, y: yPos)
+        let positionChanged = view.frame.origin != newOrigin
+        if positionChanged {
+            view.frame.origin = newOrigin
+        }
+
+        // Only add to superview if not already there.
+        if view.superview !== layoutView {
+            layoutView?.addSubview(view, positioned: .below, relativeTo: nil)
+        }
+
+        // Only trigger redisplay when the fragment content changed, not on every scroll.
+        if fragmentChanged {
+            view.needsDisplay = true
+        }
     }
 
     private func updateLineViewPositions(_ position: TextLineStorage<TextLine>.TextLinePosition) -> Bool {
